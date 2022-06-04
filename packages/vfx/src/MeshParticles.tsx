@@ -1,6 +1,7 @@
 import { InstancedMeshProps, useFrame, useThree } from "@react-three/fiber"
 import {
   createContext,
+  FC,
   forwardRef,
   ReactNode,
   useCallback,
@@ -29,148 +30,181 @@ export type MeshParticlesProps = InstancedMeshProps & {
   safetySize?: number
 }
 
+type EmitterProps = {
+  initialDelay?: number
+  burstDelay?: number
+  burstCount?: number
+  spawnCount?: number
+}
+
 export type MeshParticlesAPI = {
   spawnParticle: (count: number) => void
 }
 
-const MeshParticlesContext = createContext<MeshParticlesAPI>(null!)
+export const createVisualEffect = () => {
+  const Root = forwardRef<InstancedMesh, MeshParticlesProps>(
+    ({ maxParticles = 1_000, safetySize = 100, material, ...props }, ref) => {
+      /* The safetySize allows us to emit a batch of particles that would otherwise
+      exceed the maximum instance count (which would make WebGL crash.) This way, we don't
+      have to upload the entirety of all buffers every time the playhead wraps back to 0. */
+      const maxInstanceCount = maxParticles + safetySize
 
-export const useMeshParticles = () => useContext(MeshParticlesContext)
+      const imesh = useRef<InstancedMesh>(null!)
+      const playhead = useRef(0)
+      const { clock } = useThree()
 
-export const MeshParticles = forwardRef<InstancedMesh, MeshParticlesProps>(
-  (
-    { maxParticles = 1_000, safetySize = 100, children, material, ...props },
-    ref
-  ) => {
-    /* The safetySize allows us to emit a batch of particles that would otherwise
-    exceed the maximum instance count (which would make WebGL crash.) This way, we don't
-    have to upload the entirety of all buffers every time the playhead wraps back to 0. */
-    const maxInstanceCount = maxParticles + safetySize
+      /* Helper method to create new instanced buffer attributes */
+      const createAttribute = useCallback(
+        (itemSize: number) =>
+          new InstancedBufferAttribute(
+            new Float32Array(maxInstanceCount * itemSize),
+            itemSize
+          ),
+        [maxInstanceCount]
+      )
 
-    const imesh = useRef<InstancedMesh>(null!)
-    const playhead = useRef(0)
-    const { clock } = useThree()
+      /* Let's define a number of attributes. */
+      const attributes = useMemo(
+        () => ({
+          time: createAttribute(2),
+          velocity: createAttribute(3),
+          acceleration: createAttribute(3),
+          colorStart: createAttribute(4),
+          colorEnd: createAttribute(4),
+          scaleStart: createAttribute(3),
+          scaleEnd: createAttribute(3)
+        }),
+        [maxInstanceCount]
+      )
 
-    /* Helper method to create new instanced buffer attributes */
-    const createAttribute = useCallback(
-      (itemSize: number) =>
-        new InstancedBufferAttribute(
-          new Float32Array(maxInstanceCount * itemSize),
-          itemSize
-        ),
-      [maxInstanceCount]
-    )
+      /* Register the instance attributes with the imesh. */
+      useLayoutEffect(() => {
+        for (const key in attributes) {
+          imesh.current.geometry.setAttribute(
+            key,
+            attributes[key as keyof typeof attributes]
+          )
+        }
 
-    /* Let's define a number of attributes. */
-    const attributes = useMemo(
-      () => ({
-        time: createAttribute(2),
-        velocity: createAttribute(3),
-        acceleration: createAttribute(3),
-        colorStart: createAttribute(4),
-        colorEnd: createAttribute(4),
-        scaleStart: createAttribute(3),
-        scaleEnd: createAttribute(3)
-      }),
-      [maxInstanceCount]
-    )
+        imesh.current.count = 0
+      }, [attributes])
 
-    /* Register the instance attributes with the imesh. */
-    useLayoutEffect(() => {
-      for (const key in attributes) {
-        imesh.current.geometry.setAttribute(
-          key,
-          attributes[key as keyof typeof attributes]
-        )
-      }
+      const spawnParticle = useCallback(
+        (count: number) => {
+          const { instanceMatrix } = imesh.current
 
-      imesh.current.count = 0
-    }, [attributes])
+          /* Configure the attributes to upload only the updated parts to the GPU. */
+          ;[instanceMatrix, ...Object.values(attributes)].forEach(
+            (attribute) => {
+              attribute.needsUpdate = true
+              attribute.updateRange.offset =
+                playhead.current * attribute.itemSize
+              attribute.updateRange.count = count * attribute.itemSize
+            }
+          )
 
-    const spawnParticle = useCallback(
-      (count: number) => {
-        const { instanceMatrix } = imesh.current
-
-        /* Configure the attributes to upload only the updated parts to the GPU. */
-        ;[instanceMatrix, ...Object.values(attributes)].forEach((attribute) => {
-          attribute.needsUpdate = true
-          attribute.updateRange.offset = playhead.current * attribute.itemSize
-          attribute.updateRange.count = count * attribute.itemSize
-        })
-
-        /* For every spawned particle, write some data into the attribute buffers. */
-        for (let i = 0; i < count; i++) {
-          /* Set Instance Matrix */
-          imesh.current.setMatrixAt(
-            playhead.current,
-            tmpMatrix4.compose(
-              tmpPosition.random().multiplyScalar(3),
-              tmpRotation.random(),
-              tmpScale.setScalar(0.5 + Math.random() * 1)
+          /* For every spawned particle, write some data into the attribute buffers. */
+          for (let i = 0; i < count; i++) {
+            /* Set Instance Matrix */
+            imesh.current.setMatrixAt(
+              playhead.current,
+              tmpMatrix4.compose(
+                tmpPosition.random().multiplyScalar(3),
+                tmpRotation.random(),
+                tmpScale.setScalar(0.5 + Math.random() * 1)
+              )
             )
-          )
 
-          /* Set times */
-          attributes.time.setXY(
-            playhead.current,
-            clock.elapsedTime + Math.random() * 0.1,
-            clock.elapsedTime + 1 + Math.random() * 0.1
-          )
+            /* Set times */
+            attributes.time.setXY(
+              playhead.current,
+              clock.elapsedTime + Math.random() * 0.1,
+              clock.elapsedTime + 1 + Math.random() * 0.1
+            )
 
-          /* Set velocity */
-          attributes.velocity.setXYZ(
-            playhead.current,
-            ...new Vector3()
-              .randomDirection()
-              .multiplyScalar(Math.random() * 5)
-              .toArray()
-          )
+            /* Set velocity */
+            attributes.velocity.setXYZ(
+              playhead.current,
+              ...new Vector3()
+                .randomDirection()
+                .multiplyScalar(Math.random() * 5)
+                .toArray()
+            )
 
-          /* Set acceleration */
-          attributes.acceleration.setXYZ(playhead.current, 0, 0, 0)
+            /* Set acceleration */
+            attributes.acceleration.setXYZ(playhead.current, 0, 0, 0)
 
-          /* Set color */
-          attributes.colorStart.setXYZW(playhead.current, 1, 1, 1, 1)
-          attributes.colorEnd.setXYZW(playhead.current, 1, 1, 1, 0)
+            /* Set color */
+            attributes.colorStart.setXYZW(playhead.current, 1, 1, 1, 1)
+            attributes.colorEnd.setXYZW(playhead.current, 1, 1, 1, 0)
 
-          /* Set scale */
-          attributes.scaleStart.setXYZ(playhead.current, 1, 1, 1)
-          attributes.scaleEnd.setXYZ(playhead.current, 0, 0, 0)
+            /* Set scale */
+            attributes.scaleStart.setXYZ(playhead.current, 1, 1, 1)
+            attributes.scaleEnd.setXYZ(playhead.current, 0, 0, 0)
 
-          /* Advance playhead */
-          playhead.current++
+            /* Advance playhead */
+            playhead.current++
+          }
+
+          /* Increase count of imesh to match playhead */
+          if (playhead.current > imesh.current.count) {
+            imesh.current.count = playhead.current
+          }
+
+          /* If we've gone past the number of max particles, reset the playhead. */
+          if (playhead.current > maxParticles) {
+            playhead.current = 0
+          }
+        },
+        [attributes]
+      )
+
+      /* Every frame, advance the time uniform */
+      useFrame(() => {
+        ;(imesh.current.material as any).uniforms.u_time.value =
+          clock.elapsedTime
+      })
+
+      useImperativeHandle(ref, () => imesh.current, [])
+
+      return (
+        <instancedMesh
+          ref={imesh}
+          args={[undefined, material, maxInstanceCount]}
+          {...props}
+        />
+      )
+    }
+  )
+
+  const Emitter: FC<EmitterProps> = ({
+    spawnCount = 1,
+    initialDelay = 0,
+    burstCount = 1,
+    burstDelay = 0
+  }) => {
+    const cooldown = useRef(initialDelay)
+    const burstsRemaining = useRef(burstCount - 1)
+
+    useFrame((_, dt) => {
+      if (cooldown.current >= 0) {
+        cooldown.current -= dt
+
+        /* If we've reached the end of the cooldown, spawn some particles */
+        if (cooldown.current <= 0) {
+          spawnParticle(spawnCount)
+
+          /* If there are bursts left, reset the cooldown */
+          if (burstsRemaining.current > 0) {
+            cooldown.current += burstDelay
+            burstsRemaining.current--
+          }
         }
-
-        /* Increase count of imesh to match playhead */
-        if (playhead.current > imesh.current.count) {
-          imesh.current.count = playhead.current
-        }
-
-        /* If we've gone past the number of max particles, reset the playhead. */
-        if (playhead.current > maxParticles) {
-          playhead.current = 0
-        }
-      },
-      [attributes]
-    )
-
-    /* Every frame, advance the time uniform */
-    useFrame(() => {
-      ;(imesh.current.material as any).uniforms.u_time.value = clock.elapsedTime
+      }
     })
 
-    useImperativeHandle(ref, () => imesh.current, [])
-
-    return (
-      <instancedMesh
-        ref={imesh}
-        args={[undefined, material, maxInstanceCount]}
-        {...props}
-      >
-        <MeshParticlesContext.Provider value={{ spawnParticle }}>
-          {children}
-        </MeshParticlesContext.Provider>
-      </instancedMesh>
-    )
+    return null
   }
-)
+
+  return { Root, Emitter }
+}
