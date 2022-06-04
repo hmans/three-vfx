@@ -24,7 +24,7 @@ const tmpRotation = new Quaternion()
 const tmpScale = new Vector3()
 const tmpMatrix4 = new Matrix4()
 
-export type MeshParticlesProps = InstancedMeshProps & {
+export type VisualEffectProps = InstancedMeshProps & {
   children?: ReactNode
   maxParticles?: number
   safetySize?: number
@@ -42,7 +42,8 @@ export type MeshParticlesAPI = {
 }
 
 export const createVisualEffect = () => {
-  const Root = forwardRef<InstancedMesh, MeshParticlesProps>(
+  /* The Root component. */
+  const Root = forwardRef<InstancedMesh, VisualEffectProps>(
     ({ maxParticles = 1_000, safetySize = 100, material, ...props }, ref) => {
       /* The safetySize allows us to emit a batch of particles that would otherwise
       exceed the maximum instance count (which would make WebGL crash.) This way, we don't
