@@ -78,8 +78,19 @@ export default function Playground() {
     const colorA = ColorNode({ a: new Color("#f33") })
     const colorB = ColorNode({ a: new Color(0, 1, 0) })
 
+    const node = ShaderNode({
+      name: "I'm a dummy",
+      inputs: {
+        a: float(),
+        b: float()
+      },
+      outputs: {
+        value: float()
+      }
+    })
+
     const l = AddNode({
-      a: vec3(), // eeeh
+      a: float(), // eeeh
       b: colorB
     })
 

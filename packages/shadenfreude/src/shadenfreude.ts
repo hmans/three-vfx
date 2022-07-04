@@ -21,7 +21,10 @@ export type Program = {
 
 export type ProgramType = "vertex" | "fragment"
 
-export interface IShaderNode {
+export interface IShaderNode<
+  InputType extends ValueType = ValueType,
+  OutputType extends ValueType = ValueType
+> {
   name?: string
 
   vertex?: Program
@@ -29,10 +32,11 @@ export interface IShaderNode {
 
   uniforms?: Variables
   varyings?: Variables
-  inputs?: Variables
-  outputs?: Variables
+  inputs?: Variables & { a?: Variable<InputType> }
+  outputs?: Variables & { value?: Variable<OutputType> }
 
-  filters?: IShaderNode[]
+  filters?: (IShaderNodeWithDefaultInput<OutputType> &
+    IShaderNodeWithDefaultOutput<OutputType>)[]
 }
 
 export interface IShaderNodeWithDefaultInput<T extends ValueType = any>
