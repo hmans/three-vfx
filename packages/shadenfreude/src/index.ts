@@ -1,1 +1,1 @@
-export * from "./shadenfreude"
+export const argh = "argh"
