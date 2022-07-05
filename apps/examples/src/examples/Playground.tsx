@@ -8,12 +8,24 @@ import CustomShaderMaterial from "three-custom-shader-material"
 
 */
 
+type Program = {
+  header?: string
+  body?: string
+}
+
 type ShaderNode = {
   name: string
+  vertex?: Program
+  fragment?: Program
 }
 
 const CSMMasterNode = (): ShaderNode => ({
-  name: "CSM Root"
+  name: "CSM Root",
+  fragment: {
+    body: `
+      csm_DiffuseColor = vec4(0.8, 0.5, 0.3, 1.0);
+    `
+  }
 })
 
 const compileShader = (root: ShaderNode) => {
@@ -21,7 +33,7 @@ const compileShader = (root: ShaderNode) => {
 
   const fragmentShader = `
   void main() {
-    csm_DiffuseColor = vec4(0.8, 0.5, 0.3, 1.0);
+    ${root.fragment?.body || ""}
   }
   `
 
