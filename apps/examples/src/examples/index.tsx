@@ -9,7 +9,6 @@ import { Simple } from "./Simple"
 import { Snow } from "./Snow"
 import { SoftParticlesExample } from "./SoftParticlesExample"
 import Playground from "./Playground"
-import StacksExample from "./StacksExample"
 
 export type ExampleDefinition = {
   path: string
@@ -46,10 +45,5 @@ export default [
     path: "playground",
     name: "Shadenfreude Playground",
     component: <Playground />
-  },
-  {
-    path: "stacks",
-    name: "Shadenfreude Stacks",
-    component: <StacksExample />
   }
 ] as ExampleDefinition[]
