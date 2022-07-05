@@ -21,10 +21,10 @@ export type Program = {
 
 export type ProgramType = "vertex" | "fragment"
 
-export interface IShaderNode<
+export type ShaderNode<
   InputType extends ValueType = ValueType,
   OutputType extends ValueType = ValueType
-> {
+> = {
   name?: string
 
   vertex?: Program
@@ -32,25 +32,25 @@ export interface IShaderNode<
 
   uniforms?: Variables
   varyings?: Variables
-  inputs?: Variables & { a?: Variable<InputType> }
-  outputs?: Variables & { value?: Variable<OutputType> }
+  inputs?: Variables & { a: Variable<InputType> }
+  outputs?: Variables & { value: Variable<OutputType> }
 
   filters?: (IShaderNodeWithDefaultInput<OutputType> &
     IShaderNodeWithDefaultOutput<OutputType>)[]
 }
 
 export interface IShaderNodeWithDefaultInput<T extends ValueType = any>
-  extends IShaderNode {
+  extends ShaderNode {
   inputs: { a: Variable<T> }
 }
 
 export interface IShaderNodeWithDefaultOutput<T extends ValueType = any>
-  extends IShaderNode {
+  extends ShaderNode {
   outputs: { value: Variable<T> }
 }
 
 export const ShaderNode = <
-  S extends IShaderNode,
+  S extends ShaderNode,
   P extends Partial<VariableProps<S["inputs"]>>
 >(
   node: S,
@@ -86,8 +86,8 @@ export const ShaderNode = <
 }
 
 export const Factory = <
-  F extends () => IShaderNode = () => IShaderNode,
-  S extends IShaderNode = ReturnType<F>,
+  F extends () => ShaderNode = () => ShaderNode,
+  S extends ShaderNode = ReturnType<F>,
   Props = Partial<VariableProps<S["inputs"]>>
 >(
   fac: F
@@ -142,7 +142,7 @@ export type Variable<T extends ValueType = any> = {
   name: string
   type: T
   value?: Value<T>
-  node?: IShaderNode
+  node?: ShaderNode
   qualifier?: Qualifier
 }
 
@@ -247,7 +247,7 @@ export function getValueType<T extends ValueType>(value: Parameter<T>): T {
 
 */
 
-export const compileShader = (root: IShaderNode) => {
+export const compileShader = (root: ShaderNode) => {
   /**
    * Renders the GLSL representation of a given variable value.
    */
@@ -298,35 +298,35 @@ export const compileShader = (root: IShaderNode) => {
   /**
    * Returns the dependencies of the given shader node's input variables.
    */
-  const getInputDependencies = (node: IShaderNode) =>
+  const getInputDependencies = (node: ShaderNode) =>
     unique(
       getVariables(node.inputs)
         .filter(([_, variable]) => isVariable(variable.value))
         .map(([_, variable]) => variable.value.node)
     )
 
-  const getOutputDependencies = (node: IShaderNode) =>
+  const getOutputDependencies = (node: ShaderNode) =>
     unique(
       getVariables(node.outputs)
         .filter(([_, variable]) => isVariable(variable.value))
         .map(([_, variable]) => variable.value.node)
     )
 
-  const getDependencies = (node: IShaderNode) =>
+  const getDependencies = (node: ShaderNode) =>
     unique([
       ...getInputDependencies(node),
       ...getOutputDependencies(node),
       ...(node.filters || [])
     ])
 
-  const nodeBegin = (node: IShaderNode) => `/*** BEGIN: ${node.name} ***/`
-  const nodeEnd = (node: IShaderNode) => `/*** END: ${node.name} ***/\n`
+  const nodeBegin = (node: ShaderNode) => `/*** BEGIN: ${node.name} ***/`
+  const nodeEnd = (node: ShaderNode) => `/*** END: ${node.name} ***/\n`
 
   const compileHeader = (
-    node: IShaderNode,
+    node: ShaderNode,
     programType: ProgramType,
     state = {
-      seenNodes: new Set<IShaderNode>(),
+      seenNodes: new Set<ShaderNode>(),
       seenGlobals: new Set<string>()
     }
   ): Parts => {
@@ -373,9 +373,9 @@ export const compileShader = (root: IShaderNode) => {
   }
 
   const compileBody = (
-    node: IShaderNode,
+    node: ShaderNode,
     programType: ProgramType,
-    seen: Set<IShaderNode> = new Set()
+    seen: Set<ShaderNode> = new Set()
   ): Parts => {
     if (seen.has(node)) return []
     seen.add(node)
@@ -477,8 +477,8 @@ export const compileShader = (root: IShaderNode) => {
   }
 
   const prepareNode = (
-    node: IShaderNode,
-    state = { id: 0, seenNodes: new Set<IShaderNode>() }
+    node: ShaderNode,
+    state = { id: 0, seenNodes: new Set<ShaderNode>() }
   ) => {
     if (state.seenNodes.has(node)) return
     state.seenNodes.add(node)
