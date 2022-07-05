@@ -1,5 +1,5 @@
 import { useMemo } from "react"
-import { MeshStandardMaterial } from "three"
+import { MeshStandardMaterial, Vector4 } from "three"
 import CustomShaderMaterial from "three-custom-shader-material"
 
 /*
@@ -27,8 +27,18 @@ function statement(...parts: Parts) {
   return [...parts, ";"]
 }
 
-function assignment(name: string, value: string) {
-  return statement(`${name} = ${value}`)
+function assignment(name: string, value: any) {
+  return statement(`${name} = ${renderValue(value)}`)
+}
+
+function renderValue(value: any) {
+  if (typeof value === "string") {
+    return value
+  } else if (value instanceof Vector4) {
+    return `vec4(${value.x}, ${value.y}, ${value.z}, ${value.w})`
+  } else {
+    return value
+  }
 }
 
 type Program = {
@@ -45,7 +55,7 @@ type ShaderNode = {
 const CSMMasterNode = (): ShaderNode => ({
   name: "CSM Root",
   fragment: {
-    body: assignment("csm_DiffuseColor", "vec4(0.8, 0.5, 0.3, 1.0)")
+    body: assignment("csm_DiffuseColor", new Vector4(0.8, 0.5, 0.3, 1.0))
   }
 })
 
