@@ -23,6 +23,14 @@ function block(...parts: Parts) {
   return ["{", ...parts, "}"]
 }
 
+function statement(...parts: Parts) {
+  return [...parts, ";"]
+}
+
+function assignment(name: string, value: string) {
+  return statement(`${name} = ${value}`)
+}
+
 type Program = {
   header?: Chunk
   body?: Chunk
@@ -37,7 +45,7 @@ type ShaderNode = {
 const CSMMasterNode = (): ShaderNode => ({
   name: "CSM Root",
   fragment: {
-    body: ["csm_DiffuseColor = vec4(0.8, 0.5, 0.3, 1.0);"]
+    body: assignment("csm_DiffuseColor", "vec4(0.8, 0.5, 0.3, 1.0)")
   }
 })
 
