@@ -8,9 +8,24 @@ import CustomShaderMaterial from "three-custom-shader-material"
 
 */
 
+type Parts = any[]
+
+type Chunk = string | Parts
+
+function concatenate(...parts: Parts): string {
+  return parts
+    .filter((p) => !!p)
+    .map((p) => (Array.isArray(p) ? concatenate(...p) : p))
+    .join("\n")
+}
+
+function block(...parts: Parts) {
+  return ["{", ...parts, "}"]
+}
+
 type Program = {
-  header?: string
-  body?: string
+  header?: Chunk
+  body?: Chunk
 }
 
 type ShaderNode = {
@@ -22,20 +37,14 @@ type ShaderNode = {
 const CSMMasterNode = (): ShaderNode => ({
   name: "CSM Root",
   fragment: {
-    body: `
-      csm_DiffuseColor = vec4(0.8, 0.5, 0.3, 1.0);
-    `
+    body: ["csm_DiffuseColor = vec4(0.8, 0.5, 0.3, 1.0);"]
   }
 })
 
 const compileShader = (root: ShaderNode) => {
   const vertexShader = ``
 
-  const fragmentShader = `
-  void main() {
-    ${root.fragment?.body || ""}
-  }
-  `
+  const fragmentShader = concatenate("void main()", block(root.fragment?.body))
 
   return {
     vertexShader,
