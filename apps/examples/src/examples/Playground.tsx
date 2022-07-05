@@ -16,12 +16,14 @@ import CustomShaderMaterial from "three-custom-shader-material"
 
 */
 
-const FloatNode = (value: number): ShaderNode<"float"> => ({
-  value: variable("float", value),
-
-  render: () => ({
-    name: "Float"
-  })
+const FloatNode = (value: number): ShaderNode<"float", "float"> => ({
+  name: "Float",
+  inputs: {
+    a: variable("float")
+  },
+  outputs: {
+    value: variable("float", value)
+  }
 })
 
 const ColorNode = (color: Color): ShaderNode<"vec3"> => ({

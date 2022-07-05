@@ -8,14 +8,19 @@ export type Program = {
   body?: Chunk
 }
 
-export type ShaderNode<T extends ValueType> = {
-  [key: string]: any
-  value: Variable<T>
-  render: () => RenderedShaderNode
-}
-
-export type RenderedShaderNode = {
+export type ShaderNode<I extends ValueType, O extends ValueType> = {
   name: string
+
+  inputs: {
+    a: Variable<I>
+  }
+
+  outputs: {
+    value: Variable<O>
+  }
+
   vertex?: Program
   fragment?: Program
 }
+
+export function ShaderNode() {}

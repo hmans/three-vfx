@@ -1,15 +1,10 @@
 import { block, concatenate } from "./concatenator3000"
 import { ShaderNode } from "./nodes"
 
-export const compileShader = (root: ShaderNode<any>) => {
-  const rendered = root.render()
-
+export const compileShader = (root: ShaderNode<any, any>) => {
   const vertexShader = ``
 
-  const fragmentShader = concatenate(
-    "void main()",
-    block(rendered.fragment?.body)
-  )
+  const fragmentShader = concatenate("void main()", block(root.fragment?.body))
 
   return {
     vertexShader,
