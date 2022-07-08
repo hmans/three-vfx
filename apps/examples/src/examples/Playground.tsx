@@ -9,11 +9,17 @@ import {
   Join,
   Multiply,
   PerlinNoise,
+  Pipe,
+  Simplex3DNoise,
   Sin,
+  Smoothstep,
+  Step,
+  Subtract,
   Time,
+  Vec3,
   VertexPosition
 } from "shadenfreude"
-import { Color, MeshStandardMaterial } from "three"
+import { Color, DoubleSide, MeshStandardMaterial } from "three"
 import CustomShaderMaterial from "three-custom-shader-material"
 
 // const noiseFunctions = `
@@ -170,13 +176,29 @@ export default function Playground() {
     const Wobble = (frequency: Float, amplitude: Float) =>
       Multiply(Sin(Multiply(Time, frequency)), amplitude)
 
-    const fresnel = Fresnel()
+    /* Define a base color */
+    const baseColor = Vec3(new Color("#88c"))
 
-    const p = PerlinNoise(VertexPosition, Join(Time, Time, Time))
+    /* Now let's calculate a noise value based on the vertex position */
+    const noise = Simplex3DNoise(Multiply(VertexPosition, 0.3))
+
+    const threshold = Sin(Time)
+
+    const Dissolve = (noise: Float, threshold: Float) => Step(noise, threshold)
+
+    const DissolveBorder = (
+      noise: Float,
+      threshold: Float,
+      edgeColor: Vec3 = new Color(0, 5, 8)
+    ) =>
+      Multiply(
+        edgeColor,
+        Smoothstep(Subtract(threshold, 0.2), Add(threshold, 0.2), noise)
+      )
+
     const root = CustomShaderMaterialMaster({
-      position: Multiply(VertexPosition, Add(Multiply(p, 0.2), 1.0)),
-
-      diffuseColor: Multiply(new Color(10, 0.8, 0.2), p)
+      diffuseColor: Add(baseColor, DissolveBorder(noise, threshold)),
+      alpha: Dissolve(noise, threshold)
     })
 
     return compileShader(root)
@@ -196,6 +218,7 @@ export default function Playground() {
           baseMaterial={MeshStandardMaterial}
           {...shader}
           transparent
+          side={DoubleSide}
         />
       </mesh>
     </group>
